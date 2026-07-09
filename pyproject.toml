@@ -1,0 +1,11 @@
+[project]
+name = "veridion-mleng"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "apache-hamilton>=1.90.0",
+    "click>=8.4.2",
+    "pandas>=3.0.3",
+]
