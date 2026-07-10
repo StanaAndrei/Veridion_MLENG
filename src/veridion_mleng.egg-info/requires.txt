@@ -1,0 +1,4 @@
+apache-hamilton>=1.90.0
+click>=8.4.2
+pandas>=3.0.3
+pydantic>=2.13.4
