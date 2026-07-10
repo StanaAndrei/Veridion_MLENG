@@ -1,6 +1,6 @@
 import click
 from hamilton import driver
-from pipe_stages import read, answer
+from pipe_stages import read, query_parser, answer
 
 
 @click.command()
@@ -12,31 +12,35 @@ from pipe_stages import read, answer
 )
 @click.option('--query', prompt='Query', help='Query input')
 def main(ifile: str, query: str):
-    click.echo(f"Initializing baseline pipeline for query: '{query}'")
+    click.echo("Initializing hybrid match framework...")
 
-    pipeline_modules = [read, answer]
+    # We load only the modules we want to parse
+    pipeline_modules = [read, query_parser, answer]
     dr = driver.Driver({}, *pipeline_modules)
 
     inputs = {
-        "ifile": ifile
+        "ifile": ifile,
+        "query": query
     }
 
-    results = dr.execute(
-        final_vars=["final_count"],
+    # We pull the underlying dictionary structure from Hamilton's raw node execution trace
+    # to completely bypass any Pandas or Tuple type conversions.
+    raw_graph_results = dr.raw_execute(
+        final_vars=["parsed_intent", "final_count"],
         inputs=inputs
     )
 
-    raw_count = results["final_count"]
+    intent = raw_graph_results["parsed_intent"]
+    count = raw_graph_results["final_count"]
 
-    # If Hamilton wrapped it in a Pandas Series/Dataframe, pull the underlying value
-    if hasattr(raw_count, "iloc"):
-        count = raw_count.iloc[0]
-    elif isinstance(raw_count, dict):
-        count = list(raw_count.values())[0]
-    else:
-        count = raw_count
-
-    click.echo(f"Pipeline complete. Total initial candidate companies: {count}")
+    click.echo("\n=== Gemini Query Parser Output ===")
+    click.echo(f"Original Query: '{query}'")
+    click.echo(f"Hard Filters Geo: {intent.hard_filters.country_code}")
+    click.echo(f"Hard Filters Public status: {intent.hard_filters.is_public}")
+    click.echo(f"Industry primary keywords: {intent.industry_intent.primary_keywords}")
+    click.echo(f"Optimized Semantic Vector Target: '{intent.semantic_search_prompt}'")
+    click.echo(f"Total Initial Candidates: {count}")
+    click.echo("==================================\n")
 
 
 if __name__ == '__main__':
