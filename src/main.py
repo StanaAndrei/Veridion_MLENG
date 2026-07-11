@@ -1,6 +1,6 @@
 import click
 from hamilton import driver
-from pipe_stages import read, query_parser, answer
+from pipe_stages import read, query_parser, hard_filter, answer
 
 
 @click.command()
@@ -14,32 +14,34 @@ from pipe_stages import read, query_parser, answer
 def main(ifile: str, query: str):
     click.echo("Initializing hybrid match framework...")
 
-    # We load only the modules we want to parse
-    pipeline_modules = [read, query_parser, answer]
-    dr = driver.Driver({}, *pipeline_modules)
+    # We use the modern Hamilton Builder to construct our driver safely.
+    # by default, when not using any dataframe adapters, it outputs a clean dictionary.
+    dr = (
+        driver.Builder()
+        .with_modules(read, query_parser, hard_filter, answer)
+        .build()
+    )
 
     inputs = {
         "ifile": ifile,
         "query": query
     }
 
-    # We pull the underlying dictionary structure from Hamilton's raw node execution trace
-    # to completely bypass any Pandas or Tuple type conversions.
-    raw_graph_results = dr.raw_execute(
-        final_vars=["parsed_intent", "final_count"],
+    # .execute() now returns a clean, standard Python dictionary containing your raw objects.
+    results = dr.execute(
+        final_vars=["parsed_intent", "final_count", "filtered_count"],
         inputs=inputs
     )
 
-    intent = raw_graph_results["parsed_intent"]
-    count = raw_graph_results["final_count"]
+    intent = results["parsed_intent"]
+    initial_count = results["final_count"]
+    post_filter_count = results["filtered_count"]
 
     click.echo("\n=== Gemini Query Parser Output ===")
     click.echo(f"Original Query: '{query}'")
     click.echo(f"Hard Filters Geo: {intent.hard_filters.country_code}")
-    click.echo(f"Hard Filters Public status: {intent.hard_filters.is_public}")
-    click.echo(f"Industry primary keywords: {intent.industry_intent.primary_keywords}")
-    click.echo(f"Optimized Semantic Vector Target: '{intent.semantic_search_prompt}'")
-    click.echo(f"Total Initial Candidates: {count}")
+    click.echo(f"Total Initial Candidates: {initial_count}")
+    click.echo(f"Candidates Remaining After Hard Filters: {post_filter_count}")
     click.echo("==================================\n")
 
 
