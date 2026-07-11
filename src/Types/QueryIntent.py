@@ -2,8 +2,8 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 class HardFilters(BaseModel):
-    country_code: Optional[str] = Field(
-        None, description="ISO 2-letter country code if explicitly requested (e.g., 'de', 'ro', 'fr'). None if global or ambiguous."
+    country_codes: Optional[List[str]] = Field(
+        None, description="List of ISO 2-letter country codes implied by the query. For 'Europe', include ['es', 'fr', 'de', 'gb', 'it', 'nl', 'ro', 'ch', 'pt', 'be']. For 'Germany', just ['de']."
     )
     min_employees: Optional[int] = Field(None, description="Minimum number of employees requested.")
     max_employees: Optional[int] = Field(None, description="Maximum number of employees requested.")
@@ -13,16 +13,10 @@ class HardFilters(BaseModel):
     founded_after: Optional[int] = Field(None, description="Year founded must be strictly greater than this.")
 
 class IndustryIntent(BaseModel):
-    primary_keywords: List[str] = Field(
-        ..., description="List of highly relevant industry or role keywords (e.g., ['fintech', 'saas', 'packaging supplier'])."
-    )
-    banned_keywords: List[str] = Field(
-        default_factory=list, description="Keywords to actively avoid or treat as negative intent (e.g., if query is packaging *for* cosmetics, cosmetics is a target market, not the core offering)."
-    )
+    primary_keywords: List[str] = Field(..., description="List of relevant industry or role keywords.")
+    banned_keywords: List[str] = Field(default_factory=list, description="Keywords to actively avoid.")
 
 class QueryIntent(BaseModel):
     hard_filters: HardFilters = Field(..., description="Deterministic attribute parameters extracted from the query.")
     industry_intent: IndustryIntent = Field(..., description="Semantic text blocks and role identifiers.")
-    semantic_search_prompt: str = Field(
-        ..., description="An optimized, descriptive sentence targeted at asymmetric vector search matching company profiles (e.g., transforming 'packaging for cosmetics' into 'We manufacture premium boxes and bottles for cosmetic brands')."
-    )
+    semantic_search_prompt: str = Field(..., description="An optimized, descriptive sentence targeted at asymmetric vector search matching.")
