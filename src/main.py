@@ -1,6 +1,7 @@
 import click
 from hamilton import driver
 from pipe_stages import read, query_parser, hard_filter, semantic_filter, answer
+from Types.Qualification import FinalQualificationReport
 
 
 @click.command()
@@ -14,7 +15,7 @@ from pipe_stages import read, query_parser, hard_filter, semantic_filter, answer
 def main(ifile: str, query: str):
     click.echo("Initializing hybrid match framework...")
 
-    # Added semantic_filter stage to the active pipeline tracking definitions
+    # Standard Hamilton builder incorporating all 4 stage modules
     dr = (
         driver.Builder()
         .with_modules(read, query_parser, hard_filter, semantic_filter, answer)
@@ -26,27 +27,40 @@ def main(ifile: str, query: str):
         "query": query
     }
 
+    # We now request 'final_evaluation' which triggers the answer.py node!
     results = dr.execute(
-        final_vars=["parsed_intent", "final_count", "filtered_count", "ranked_semantic_candidates"],
+        final_vars=["final_count", "filtered_count", "final_evaluation"],
         inputs=inputs
     )
 
-    intent = results["parsed_intent"]
     initial_count = results["final_count"]
     post_filter_count = results["filtered_count"]
-    ranked_pool = results["ranked_semantic_candidates"]
+    report: FinalQualificationReport = results["final_evaluation"]
 
-    click.echo("\n=== Gemini Pipeline Progress Output ===")
+    click.echo("\n==============================================")
     click.echo(f"Original Query: '{query}'")
-    click.echo(f"Total Dataset Count: {initial_count}")
+    click.echo(f"Total Companies Evaluated: {initial_count}")
     click.echo(f"Surviving Hard Filters: {post_filter_count}")
-    click.echo(f"Semantic Funnel Output Count: {len(ranked_pool)}")
+    click.echo("==============================================\n")
 
-    if ranked_pool:
-        click.echo("\n--- Top Semantically Ranked Candidates ---")
-        for idx, comp in enumerate(ranked_pool[:3], 1):
-            click.echo(f"{idx}. {comp.operational_name} (Geo: {comp.address.country_code if comp.address else '??'})")
-    click.echo("=========================================\n")
+    click.echo("--- Final Qualified Results from LLM Judge ---")
+
+    # Filter the report for true positive matches
+    true_matches = [m for m in report.qualified_matches if m.is_true_match]
+
+    if not true_matches:
+        click.echo("⚠ No valid companies in the dataset satisfied your specific query constraints.")
+        # Optional: Print out the close rejections so the user understands why
+        if report.qualified_matches:
+            click.echo("\n(Closest candidates evaluated and rejected by the judge:)")
+            for match in report.qualified_matches[:3]:
+                click.echo(f"  - {match.operational_name}: {match.justification}")
+    else:
+        for match in true_matches:
+            click.echo(f"[✓ MATCH] {match.operational_name} (Conf: {match.confidence_score})")
+            click.echo(f"   Reason: {match.justification}\n")
+
+    click.echo("==============================================\n")
 
 
 if __name__ == '__main__':
