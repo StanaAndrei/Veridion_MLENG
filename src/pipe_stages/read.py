@@ -3,10 +3,10 @@ from pydantic import ValidationError
 from Types.Company import Company
 
 
-def raw_companies(ifile: str) -> List[Company]:
+def raw_companies(infile: str) -> List[Company]:
     companies: List[Company] = []
 
-    with open(ifile, "r", encoding="utf-8") as f:
+    with open(infile, "r", encoding="utf-8") as f:
         for idx, line in enumerate(f, 1):
             line = line.strip()
             if not line:
@@ -15,7 +15,6 @@ def raw_companies(ifile: str) -> List[Company]:
                 company = Company.model_validate_json(line)
                 companies.append(company)
             except ValidationError as e:
-                # Let's inspect the first couple of errors to see exactly what fields are failing
                 print(f"Line {idx} failed validation. Errors:")
                 print(e.json(indent=2))
                 print("-" * 40)

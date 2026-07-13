@@ -6,10 +6,7 @@ from Types.QueryIntent import QueryIntent
 def filtered_companies(raw_companies: List[Company], parsed_intent: QueryIntent) -> List[Company]:
     filters = parsed_intent.hard_filters
 
-    # We gather the parsed keywords plus common linguistic roots
     keywords = [k.lower() for k in parsed_intent.industry_intent.primary_keywords]
-
-    # Let's add common transport/logistics synonyms if 'logistics' is present
     if "logistics" in keywords:
         keywords.extend(["transport", "freight", "cargo", "delivery", "shipping", "warehouse", "supply chain"])
 

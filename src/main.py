@@ -6,16 +6,15 @@ from Types.Qualification import FinalQualificationReport
 
 @click.command()
 @click.option(
-    '--ifile', '-i',
+    '--infile', '-i',
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
     help='Input file (jsonl format)'
 )
 @click.option('--query', prompt='Query', help='Query input')
-def main(ifile: str, query: str):
+def main(infile: str, query: str):
     click.echo("Initializing hybrid match framework...")
 
-    # Standard Hamilton builder incorporating all 4 stage modules
     dr = (
         driver.Builder()
         .with_modules(read, query_parser, hard_filter, semantic_filter, answer)
@@ -23,11 +22,10 @@ def main(ifile: str, query: str):
     )
 
     inputs = {
-        "ifile": ifile,
+        "infile": infile,
         "query": query
     }
 
-    # We now request 'final_evaluation' which triggers the answer.py node!
     results = dr.execute(
         final_vars=["final_count", "filtered_count", "final_evaluation"],
         inputs=inputs
@@ -45,12 +43,10 @@ def main(ifile: str, query: str):
 
     click.echo("--- Final Qualified Results from LLM Judge ---")
 
-    # Filter the report for true positive matches
     true_matches = [m for m in report.qualified_matches if m.is_true_match]
 
     if not true_matches:
         click.echo("⚠ No valid companies in the dataset satisfied your specific query constraints.")
-        # Optional: Print out the close rejections so the user understands why
         if report.qualified_matches:
             click.echo("\n(Closest candidates evaluated and rejected by the judge:)")
             for match in report.qualified_matches[:3]:

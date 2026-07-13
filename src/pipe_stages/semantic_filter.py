@@ -46,11 +46,9 @@ def ranked_semantic_candidates(filtered_companies: List[Company], parsed_intent:
         """
 
         try:
-            # Isolated vector calculation eliminates multi-part token index shift bugs
             company_vector = _get_embedding(client, company_text_blob.strip(), is_query=False)
             base_score = _dot_product(query_vector, company_vector)
         except Exception as e:
-            # Fallback defensively if a specific company profile triggers an execution hitch
             base_score = 0.0
 
         # 3. Hybrid Search: Apply industry keyword validation adjustments
@@ -64,7 +62,6 @@ def ranked_semantic_candidates(filtered_companies: List[Company], parsed_intent:
         if company.primary_naics and company.primary_naics.label:
             company_metadata_pool.append(company.primary_naics.label.lower())
 
-        # If the metadata pool explicitly contains the requested intent keys, award a boost
         for kw in keywords:
             if any(kw in meta for meta in company_metadata_pool):
                 keyword_boost += 0.30
@@ -75,7 +72,6 @@ def ranked_semantic_candidates(filtered_companies: List[Company], parsed_intent:
     # 4. Sort descending based on our updated hybrid metrics
     scored_candidates.sort(key=lambda x: x[0], reverse=True)
 
-    # Absolute unique item preservation layer
     seen_ids = set()
     unique_ranked_companies = []
     for _, company in scored_candidates:
